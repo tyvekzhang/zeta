@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""StockDailyRecommendation data model"""
+"""StockCapitalFlow data model"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from sqlmodel import (
 from fastlib.utils.snowflake_util import snowflake_id
 
 
-class StockDailyRecommendationBase(SQLModel):
+class StockCapitalFlowBase(SQLModel):
     
     id: int = Field(
         default_factory=snowflake_id,
@@ -29,74 +29,88 @@ class StockDailyRecommendationBase(SQLModel):
         nullable=False,
         sa_type=BigInteger,sa_column_kwargs={"comment": "主键"}
     )
-    stock_symbol_full: Optional[str] = Field(
-        sa_column=Column(
-            String(20),
-            nullable=True,
-            comment="股票代码"
-        )
-    )
-    recommend_date: Optional[datetime] = Field(
+    trade_date: Optional[datetime] = Field(
         sa_column=Column(
             DateTime,
             nullable=True,
-            comment="推荐日期"
+            comment="交易日期"
         )
     )
-    recommend_level: Optional[int] = Field(
+    stock_symbol_full: Optional[str] = Field(
+        sa_column=Column(
+            String(16),
+            nullable=True,
+            comment="股票代码(如 600519.SZ)"
+        )
+    )
+    exchange: Optional[str] = Field(
+        sa_column=Column(
+            String(8),
+            nullable=True,
+            comment="交易所(SH-上交所 SZ-深交所 BJ-北交所)"
+        )
+    )
+    main_inflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="推荐等级(1:强烈推荐 2:推荐 3:中性 4:谨慎 5:卖出)"
+            default='0',comment="主力流入(元)"
         )
     )
-    price: Optional[int] = Field(
+    main_outflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="当前价(分)"
+            default='0',comment="主力流出(元)"
         )
     )
-    target_price: Optional[int] = Field(
+    main_net: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="目标价(分)"
+            default='0',comment="主力净流入(元)"
         )
     )
-    recommend_reason: Optional[str] = Field(
-        sa_column=Column(
-            String,
-            nullable=True,
-            comment="推荐理由"
-        )
-    )
-    analyst: Optional[str] = Field(
-        sa_column=Column(
-            String(100),
-            nullable=True,
-            comment="分析师"
-        )
-    )
-    institution: Optional[str] = Field(
-        sa_column=Column(
-            String(100),
-            nullable=True,
-            comment="机构名称"
-        )
-    )
-    risk_level: Optional[str] = Field(
-        sa_column=Column(
-            String,
-            nullable=True,
-            comment="风险等级"
-        )
-    )
-    validity_period: Optional[int] = Field(
+    retail_inflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="有效期(天)"
+            default='0',comment="散户流入(元)"
+        )
+    )
+    retail_outflow: Optional[int] = Field(
+        sa_column=Column(
+            Integer,
+            nullable=True,
+            default='0',comment="散户流出(元)"
+        )
+    )
+    retail_net: Optional[int] = Field(
+        sa_column=Column(
+            Integer,
+            nullable=True,
+            default='0',comment="散户净流入(元)"
+        )
+    )
+    total_inflow: Optional[int] = Field(
+        sa_column=Column(
+            Integer,
+            nullable=True,
+            default='0',comment="总流入(元)"
+        )
+    )
+    total_outflow: Optional[int] = Field(
+        sa_column=Column(
+            Integer,
+            nullable=True,
+            default='0',comment="总流出(元)"
+        )
+    )
+    total_net: Optional[int] = Field(
+        sa_column=Column(
+            Integer,
+            nullable=True,
+            default='0',comment="总净流入(元)"
         )
     )
     created_at: Optional[datetime] = Field(
@@ -112,9 +126,9 @@ class StockDailyRecommendationBase(SQLModel):
     )
 
 
-class StockDailyRecommendationModel(StockDailyRecommendationBase, table=True):
-    __tablename__ = "stock_daily_recommendation"
+class StockCapitalFlowModel(StockCapitalFlowBase, table=True):
+    __tablename__ = "stock_capital_flow"
     __table_args__ = (
-        Index("idx_recommend_date", "recommend_date"),
-        Index("idx_stock_date", "stock_symbol_full", "recommend_date"),
+        Index("idx_symbol", "stock_symbol_full"),
+        Index("idx_trade_date", "trade_date"),
     )

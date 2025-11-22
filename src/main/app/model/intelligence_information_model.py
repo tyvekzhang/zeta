@@ -101,7 +101,7 @@ class IntelligenceInformationBase(SQLModel):
 class IntelligenceInformationModel(IntelligenceInformationBase, table=True):
     __tablename__ = "intelligence_information"
     __table_args__ = (
-        Index("idx_publish_time", publish_time),
-        Index("idx_stock_time", stock_symbol_full, publish_time),
-        Index("idx_title_content", news_title, news_content),
+        Index("idx_publish_time", "publish_time"),
+        Index("idx_stock_time", "stock_symbol_full", "publish_time"),
+        Index("idx_title_content", "news_title",),
     )

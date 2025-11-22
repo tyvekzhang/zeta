@@ -71,13 +71,6 @@ class StockBasicInfoBase(SQLModel):
             comment="行业"
         )
     )
-    industry_gy: Optional[str] = Field(
-        sa_column=Column(
-            String(50),
-            nullable=True,
-            comment="细分行业"
-        )
-    )
     province: Optional[str] = Field(
         sa_column=Column(
             String(50),
@@ -92,6 +85,55 @@ class StockBasicInfoBase(SQLModel):
             comment="城市"
         )
     )
+    company_name: Optional[str] = Field(
+        sa_column=Column(
+            String(200),
+            nullable=True,
+            comment="公司全称"
+        )
+    )
+    english_name: Optional[str] = Field(
+        sa_column=Column(
+            String(200),
+            nullable=True,
+            comment="英文名称"
+        )
+    )
+    former_name: Optional[str] = Field(
+        sa_column=Column(
+            String(200),
+            nullable=True,
+            comment="曾用简称"
+        )
+    )
+    market_type: Optional[str] = Field(
+        sa_column=Column(
+            String(20),
+            nullable=True,
+            comment="所属市场"
+        )
+    )
+    legal_representative: Optional[str] = Field(
+        sa_column=Column(
+            String(50),
+            nullable=True,
+            comment="法人代表"
+        )
+    )
+    registered_capital: Optional[str] = Field(
+        sa_column=Column(
+            String(50),
+            nullable=True,
+            comment="注册资金(万元)"
+        )
+    )
+    establish_date: Optional[datetime] = Field(
+        sa_column=Column(
+            DateTime,
+            nullable=True,
+            comment="成立日期"
+        )
+    )
     website: Optional[str] = Field(
         sa_column=Column(
             String(200),
@@ -99,11 +141,67 @@ class StockBasicInfoBase(SQLModel):
             comment="官网"
         )
     )
-    price_tick: Optional[int] = Field(
+    email: Optional[str] = Field(
         sa_column=Column(
-            Integer,
+            String(100),
             nullable=True,
-            default='1',comment="最小报价单位，1表示0.01元"
+            comment="电子邮箱"
+        )
+    )
+    telephone: Optional[str] = Field(
+        sa_column=Column(
+            String(50),
+            nullable=True,
+            comment="联系电话"
+        )
+    )
+    fax: Optional[str] = Field(
+        sa_column=Column(
+            String(50),
+            nullable=True,
+            comment="传真"
+        )
+    )
+    registered_address: Optional[str] = Field(
+        sa_column=Column(
+            String(500),
+            nullable=True,
+            comment="注册地址"
+        )
+    )
+    business_address: Optional[str] = Field(
+        sa_column=Column(
+            String(500),
+            nullable=True,
+            comment="办公地址"
+        )
+    )
+    postal_code: Optional[str] = Field(
+        sa_column=Column(
+            String(20),
+            nullable=True,
+            comment="邮政编码"
+        )
+    )
+    main_business: Optional[str] = Field(
+        sa_column=Column(
+            String,
+            nullable=True,
+            comment="主营业务"
+        )
+    )
+    business_scope: Optional[str] = Field(
+        sa_column=Column(
+            String,
+            nullable=True,
+            comment="经营范围"
+        )
+    )
+    company_profile: Optional[str] = Field(
+        sa_column=Column(
+            String,
+            nullable=True,
+            comment="机构简介"
         )
     )
     data_source: Optional[str] = Field(
@@ -129,8 +227,10 @@ class StockBasicInfoBase(SQLModel):
 class StockBasicInfoModel(StockBasicInfoBase, table=True):
     __tablename__ = "stock_basic_info"
     __table_args__ = (
-        Index("idx_exchange", exchange),
-        Index("idx_industry", industry),
+        Index("idx_exchange", "exchange"),
+        Index("idx_industry", "industry"),
+        Index("idx_listing_date", "listing_date"),
+        Index("idx_province", "province"),
         UniqueConstraint("symbol", name="uniq_symbol"),
         UniqueConstraint("symbol_full", name="uniq_symbol_full"),
     )

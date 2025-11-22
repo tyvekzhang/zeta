@@ -12,6 +12,22 @@ from src.main.app.model.stock_basic_info_model import StockBasicInfoModel
 
 
 class StockBasicInfoMapper(SqlModelMapper[StockBasicInfoModel]):
+    
+    async def select_all_symbols(
+        self, db_session: Optional[AsyncSession] = None
+    ) -> list[dict]:
+        """
+        获取所有已存在的股票代码
+        
+        Returns:
+            list[dict]: 包含symbol字段的字典列表
+        """
+        db_session = db_session or self.db.session
+        result = await db_session.exec(
+            select(self.model.symbol)
+        )
+        symbols = result.all()
+        return [{"symbol": symbol} for symbol in symbols]
 
     async def select_by_exchange(
         self, *, exchange: str, db_session: Optional[AsyncSession] = None

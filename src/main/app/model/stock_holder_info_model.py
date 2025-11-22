@@ -122,6 +122,6 @@ class StockHolderInfoBase(SQLModel):
 class StockHolderInfoModel(StockHolderInfoBase, table=True):
     __tablename__ = "stock_holder_info"
     __table_args__ = (
-        Index("idx_holder", holder_name),
-        Index("idx_stock_date", stock_symbol_full, report_date),
+        Index("idx_holder", "holder_name"),
+        Index("idx_stock_date", "stock_symbol_full", "report_date"),
     )

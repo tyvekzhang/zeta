@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Annotated
 
-from fastlib.response import ListResponse
+from fastlib.response import ListResponse, HttpResponse
 from fastapi import APIRouter, Query, Form
 from starlette.responses import StreamingResponse
 
@@ -32,6 +32,14 @@ from src.main.app.service.stock_basic_info_service import StockBasicInfoService
 stock_basic_info_router = APIRouter()
 stock_basic_info_service: StockBasicInfoService = StockBasicInfoServiceImpl(mapper=stockBasicInfoMapper)
 
+
+@stock_basic_info_router.post("/stockBasicInfos:syncManually")
+async def sync_stock_basic_info_manual():
+    """
+    手动同步 akshare 的股票基础数据。
+    """
+    await stock_basic_info_service.sync_manually()
+    return HttpResponse.success()
 
 @stock_basic_info_router.get("/stockBasicInfos/{id}")
 async def get_stock_basic_info(id: int) -> StockBasicInfoDetail:

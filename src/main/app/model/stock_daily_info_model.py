@@ -290,6 +290,6 @@ class StockDailyInfoBase(SQLModel):
 class StockDailyInfoModel(StockDailyInfoBase, table=True):
     __tablename__ = "stock_daily_info"
     __table_args__ = (
-        Index("idx_stock_symbol", stock_symbol_full),
-        Index("idx_trade_date", trade_date),
+        Index("idx_stock_symbol", "stock_symbol_full"),
+        Index("idx_trade_date", "trade_date"),
     )

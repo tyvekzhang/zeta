@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""StockFinancialReport data model"""
+"""SectorCapitalFlow data model"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from sqlmodel import (
 from fastlib.utils.snowflake_util import snowflake_id
 
 
-class StockFinancialReportBase(SQLModel):
+class SectorCapitalFlowBase(SQLModel):
     
     id: int = Field(
         default_factory=snowflake_id,
@@ -29,116 +29,116 @@ class StockFinancialReportBase(SQLModel):
         nullable=False,
         sa_type=BigInteger,sa_column_kwargs={"comment": "主键"}
     )
-    file_id: Optional[int] = Field(
-        sa_column=Column(
-            Integer,
-            nullable=True,
-            comment="文件主键"
-        )
-    )
-    stock_symbol_full: Optional[str] = Field(
-        sa_column=Column(
-            String(20),
-            nullable=True,
-            comment="股票代码"
-        )
-    )
-    report_date: Optional[datetime] = Field(
+    trade_date: Optional[datetime] = Field(
         sa_column=Column(
             DateTime,
             nullable=True,
-            comment="报告期"
+            comment="交易日期"
         )
     )
-    report_type: Optional[int] = Field(
+    sector_code: Optional[str] = Field(
+        sa_column=Column(
+            String(32),
+            nullable=True,
+            comment="板块代码"
+        )
+    )
+    sector_name: Optional[str] = Field(
+        sa_column=Column(
+            String(64),
+            nullable=True,
+            comment="板块名称"
+        )
+    )
+    sector_type: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="报告类型(1:一季度, 2:年中, 3:三季度, 4:年终)"
+            comment="板块类型(1行业 2概念 3地区)"
         )
     )
-    total_revenue: Optional[int] = Field(
+    main_inflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="营业收入（分）"
+            default='0',comment="主力流入(元)"
         )
     )
-    net_profit: Optional[int] = Field(
+    main_outflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="净利润（分）"
+            default='0',comment="主力流出(元)"
         )
     )
-    total_assets: Optional[int] = Field(
+    main_net: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="总资产（分）"
+            default='0',comment="主力净流入(元)"
         )
     )
-    total_liabilities: Optional[int] = Field(
+    total_inflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="总负债（分）"
+            default='0',comment="总流入(元)"
         )
     )
-    net_assets: Optional[int] = Field(
+    total_outflow: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="净资产（分）"
+            default='0',comment="总流出(元)"
         )
     )
-    eps: Optional[int] = Field(
+    total_net: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="每股收益（分）"
+            default='0',comment="总净流入(元)"
         )
     )
-    roe: Optional[int] = Field(
+    stock_count: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="净资产收益率"
+            default='0',comment="成分股数量"
         )
     )
-    gross_profit_margin: Optional[int] = Field(
+    rise_count: Optional[int] = Field(
         sa_column=Column(
             Integer,
             nullable=True,
-            comment="毛利率"
+            default='0',comment="上涨家数"
         )
     )
-    report_source: Optional[str] = Field(
+    fall_count: Optional[int] = Field(
         sa_column=Column(
-            String(100),
+            Integer,
             nullable=True,
-            comment="报告来源"
+            default='0',comment="下跌家数"
         )
     )
-    earnings_announcement_date: Optional[datetime] = Field(
+    flat_count: Optional[int] = Field(
         sa_column=Column(
-            DateTime,
+            Integer,
             nullable=True,
-            comment="预约披露日期"
+            default='0',comment="平盘家数"
         )
     )
-    published_date: Optional[datetime] = Field(
+    sector_index: Optional[int] = Field(
         sa_column=Column(
-            DateTime,
+            Integer,
             nullable=True,
-            comment="发布日期"
+            default='0',comment="板块指数(x100)"
         )
     )
-    comment: Optional[str] = Field(
+    change_percent: Optional[int] = Field(
         sa_column=Column(
-            String,
+            Integer,
             nullable=True,
-            comment="备注"
+            default='0',comment="涨跌幅(x100)"
         )
     )
     created_at: Optional[datetime] = Field(
@@ -154,8 +154,10 @@ class StockFinancialReportBase(SQLModel):
     )
 
 
-class StockFinancialReportModel(StockFinancialReportBase, table=True):
-    __tablename__ = "stock_financial_report"
+class SectorCapitalFlowModel(SectorCapitalFlowBase, table=True):
+    __tablename__ = "sector_capital_flow"
     __table_args__ = (
-        Index("idx_stock_date", "stock_symbol_full", "report_date"),
+        Index("idx_change_percent", "change_percent"),
+        Index("idx_sector_type", "sector_type"),
+        Index("idx_trade_date_sector_code", "trade_date", "sector_code"),
     )

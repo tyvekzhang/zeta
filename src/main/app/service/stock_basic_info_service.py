@@ -25,6 +25,13 @@ from src.main.app.schema.stock_basic_info_schema import (
 
 
 class StockBasicInfoService(BaseService[StockBasicInfoModel], ABC):
+
+    @abstractmethod
+    async def sync_manually(
+        self,
+    ) -> None:
+        pass
+
     @abstractmethod
     async def get_stock_basic_info(
         self,
@@ -37,19 +44,23 @@ class StockBasicInfoService(BaseService[StockBasicInfoModel], ABC):
         self, *, req: ListStockBasicInfosRequest
     ) -> tuple[list[StockBasicInfoModel], int]: ...
 
-    
+    @abstractmethod
+    async def create_stock_basic_info(
+        self, *, req: CreateStockBasicInfoRequest
+    ) -> StockBasicInfoModel: ...
 
     @abstractmethod
-    async def create_stock_basic_info(self, *, req: CreateStockBasicInfoRequest) -> StockBasicInfoModel: ...
-
-    @abstractmethod
-    async def update_stock_basic_info(self, req: UpdateStockBasicInfoRequest) -> StockBasicInfoModel: ...
+    async def update_stock_basic_info(
+        self, req: UpdateStockBasicInfoRequest
+    ) -> StockBasicInfoModel: ...
 
     @abstractmethod
     async def delete_stock_basic_info(self, id: int) -> None: ...
 
     @abstractmethod
-    async def batch_get_stock_basic_infos(self, ids: list[int]) -> list[StockBasicInfoModel]: ...
+    async def batch_get_stock_basic_infos(
+        self, ids: list[int]
+    ) -> list[StockBasicInfoModel]: ...
 
     @abstractmethod
     async def batch_create_stock_basic_infos(
@@ -69,7 +80,9 @@ class StockBasicInfoService(BaseService[StockBasicInfoModel], ABC):
     ) -> list[StockBasicInfoModel]: ...
 
     @abstractmethod
-    async def batch_delete_stock_basic_infos(self, req: BatchDeleteStockBasicInfosRequest): ...
+    async def batch_delete_stock_basic_infos(
+        self, req: BatchDeleteStockBasicInfosRequest
+    ): ...
 
     @abstractmethod
     async def export_stock_basic_infos_template(self) -> StreamingResponse: ...

@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 
-from fastlib import ConfigManager, LogConfig
+from fastlib import ConfigManager
 from fastlib.constants import CONFIG_FILE, ENV
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -43,7 +43,6 @@ def setup_config(args: argparse.Namespace) -> None:
     if args.config_file:
         os.environ[CONFIG_FILE] = args.config_file
 
-    ConfigManager.register_custom_configs(LogConfig)
     ConfigManager.initialize_global_config()
 
 
