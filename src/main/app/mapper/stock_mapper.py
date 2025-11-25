@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""StockBasicInfo mapper"""
+"""Stock mapper"""
 
 from __future__ import annotations
 
@@ -8,30 +8,30 @@ from typing import Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from fastlib.mapper.impl.base_mapper_impl import SqlModelMapper
-from src.main.app.model.stock_basic_info_model import StockBasicInfoModel
+from src.main.app.model.stock_model import StockModel
 
 
-class StockBasicInfoMapper(SqlModelMapper[StockBasicInfoModel]):
+class StockMapper(SqlModelMapper[StockModel]):
     
-    async def select_all_symbols(
+    async def select_all_stocks(
         self, db_session: Optional[AsyncSession] = None
     ) -> list[dict]:
         """
         获取所有已存在的股票代码
         
         Returns:
-            list[dict]: 包含symbol字段的字典列表
+            list[dict]: 包含stock_code字段的字典列表
         """
         db_session = db_session or self.db.session
         result = await db_session.exec(
-            select(self.model.symbol)
+            select(self.model.stock_code)
         )
-        symbols = result.all()
-        return [{"symbol": symbol} for symbol in symbols]
+        stock_codes = result.all()
+        return [{"stock_code": stock_code} for stock_code in stock_codes]
 
     async def select_by_exchange(
         self, *, exchange: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockBasicInfoModel]:
+    ) -> Optional[StockModel]:
         """
         Retrieve a record by exchange.
         """
@@ -43,7 +43,7 @@ class StockBasicInfoMapper(SqlModelMapper[StockBasicInfoModel]):
 
     async def select_by_exchange_list(
         self, *, exchange_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockBasicInfoModel]:
+    ) -> list[StockModel]:
         """
         Retrieve records by list of exchange.
         """
@@ -56,7 +56,7 @@ class StockBasicInfoMapper(SqlModelMapper[StockBasicInfoModel]):
 
     async def select_by_industry(
         self, *, industry: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockBasicInfoModel]:
+    ) -> Optional[StockModel]:
         """
         Retrieve a record by industry.
         """
@@ -68,7 +68,7 @@ class StockBasicInfoMapper(SqlModelMapper[StockBasicInfoModel]):
 
     async def select_by_industry_list(
         self, *, industry_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockBasicInfoModel]:
+    ) -> list[StockModel]:
         """
         Retrieve records by list of industry.
         """
@@ -79,55 +79,80 @@ class StockBasicInfoMapper(SqlModelMapper[StockBasicInfoModel]):
         return result.all()
 
 
-    async def select_by_symbol(
-        self, *, symbol: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockBasicInfoModel]:
+    async def select_by_listing_date(
+        self, *, listing_date: str, db_session: Optional[AsyncSession] = None
+    ) -> Optional[StockModel]:
         """
-        Retrieve a record by symbol.
+        Retrieve a record by listing_date.
         """
         db_session = db_session or self.db.session
         result = await db_session.exec(
-            select(self.model).where(self.model.symbol == symbol)
+            select(self.model).where(self.model.listing_date == listing_date)
         )
         return result.one_or_none()
 
-    async def select_by_symbol_list(
-        self, *, symbol_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockBasicInfoModel]:
+    async def select_by_listing_date_list(
+        self, *, listing_date_list: list[str], db_session: Optional[AsyncSession] = None
+    ) -> list[StockModel]:
         """
-        Retrieve records by list of symbol.
+        Retrieve records by list of listing_date.
         """
         db_session = db_session or self.db.session
         result = await db_session.exec(
-            select(self.model).where(self.model.symbol.in_(symbol_list))
+            select(self.model).where(self.model.listing_date.in_(listing_date_list))
         )
         return result.all()
 
 
-    async def select_by_symbol_full(
-        self, *, symbol_full: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockBasicInfoModel]:
+    async def select_by_province(
+        self, *, province: str, db_session: Optional[AsyncSession] = None
+    ) -> Optional[StockModel]:
         """
-        Retrieve a record by symbol_full.
+        Retrieve a record by province.
         """
         db_session = db_session or self.db.session
         result = await db_session.exec(
-            select(self.model).where(self.model.symbol_full == symbol_full)
+            select(self.model).where(self.model.province == province)
         )
         return result.one_or_none()
 
-    async def select_by_symbol_full_list(
-        self, *, symbol_full_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockBasicInfoModel]:
+    async def select_by_province_list(
+        self, *, province_list: list[str], db_session: Optional[AsyncSession] = None
+    ) -> list[StockModel]:
         """
-        Retrieve records by list of symbol_full.
+        Retrieve records by list of province.
         """
         db_session = db_session or self.db.session
         result = await db_session.exec(
-            select(self.model).where(self.model.symbol_full.in_(symbol_full_list))
+            select(self.model).where(self.model.province.in_(province_list))
+        )
+        return result.all()
+
+
+    async def select_by_stock_code(
+        self, *, stock_code: str, db_session: Optional[AsyncSession] = None
+    ) -> Optional[StockModel]:
+        """
+        Retrieve a record by stock_code.
+        """
+        db_session = db_session or self.db.session
+        result = await db_session.exec(
+            select(self.model).where(self.model.stock_code == stock_code)
+        )
+        return result.one_or_none()
+
+    async def select_by_stock_code_list(
+        self, *, stock_code_list: list[str], db_session: Optional[AsyncSession] = None
+    ) -> list[StockModel]:
+        """
+        Retrieve records by list of stock_code.
+        """
+        db_session = db_session or self.db.session
+        result = await db_session.exec(
+            select(self.model).where(self.model.stock_code.in_(stock_code_list))
         )
         return result.all()
 
 
 
-stockBasicInfoMapper = StockBasicInfoMapper(StockBasicInfoModel)
+stockMapper = StockMapper(StockModel)

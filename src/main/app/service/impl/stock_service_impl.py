@@ -1,76 +1,80 @@
 # SPDX-License-Identifier: MIT
-"""StockBasicInfo domain service impl"""
+"""Stock domain service impl"""
 
 from __future__ import annotations
 
+from datetime import datetime
 import io
 import json
-import platform
 import random
-import subprocess
 import time
-from datetime import datetime
 from typing import Any
-
 import akshare as ak
+
 import pandas as pd
-from fastlib.constants import FilterOperators
-from fastlib.service.impl.base_service_impl import BaseServiceImpl
-from fastlib.utils import excel_util
-from fastlib.utils.validate_util import ValidateService
 from loguru import logger
 from pydantic import ValidationError
 from starlette.responses import StreamingResponse
 
-from src.main.app.exception.biz_exception import BusinessErrorCode, BusinessException
-from src.main.app.mapper.stock_basic_info_mapper import StockBasicInfoMapper
-from src.main.app.model.stock_basic_info_model import StockBasicInfoModel
-from src.main.app.schema.stock_basic_info_schema import (BatchCreateStockBasicInfosRequest,
-                                                         BatchDeleteStockBasicInfosRequest,
-                                                         BatchPatchStockBasicInfosRequest, BatchUpdateStockBasicInfo,
-                                                         BatchUpdateStockBasicInfosRequest, CreateStockBasicInfo,
-                                                         CreateStockBasicInfoRequest, ExportStockBasicInfo,
-                                                         ExportStockBasicInfosRequest, ImportStockBasicInfo,
-                                                         ImportStockBasicInfosRequest, ListStockBasicInfosRequest,
-                                                         UpdateStockBasicInfo,
-                                                         UpdateStockBasicInfoRequest)
-from src.main.app.service.stock_basic_info_service import StockBasicInfoService
+from fastlib.constants import FilterOperators
+from fastlib.service.impl.base_service_impl import BaseServiceImpl
+from fastlib.utils import excel_util
+from fastlib.utils.validate_util import ValidateService
+from src.main.app.exception.biz_exception import BusinessErrorCode
+from src.main.app.exception.biz_exception import BusinessException
+from src.main.app.mapper.stock_mapper import StockMapper
+from src.main.app.model.stock_model import StockModel
+from src.main.app.schema.stock_schema import (
+    ListStocksRequest,
+    CreateStockRequest,
+    UpdateStockRequest,
+    BatchDeleteStocksRequest,
+    ExportStocksRequest,
+    BatchCreateStocksRequest,
+    CreateStock,
+    BatchUpdateStocksRequest,
+    UpdateStock,
+    ImportStocksRequest,
+    ImportStock,
+    ExportStock,
+    BatchPatchStocksRequest,
+    BatchUpdateStock,
+)
+from src.main.app.service.stock_service import StockService
 
 
-class StockBasicInfoServiceImpl(
-    BaseServiceImpl[StockBasicInfoMapper, StockBasicInfoModel], StockBasicInfoService
-):
+class StockServiceImpl(BaseServiceImpl[StockMapper, StockModel], StockService):
     """
-    Implementation of the StockBasicInfoService interface.
+    Implementation of the StockService interface.
     """
 
-    def __init__(self, mapper: StockBasicInfoMapper):
+    def __init__(self, mapper: StockMapper):
         """
-        Initialize the StockBasicInfoServiceImpl instance.
+        Initialize the StockServiceImpl instance.
 
         Args:
-            mapper (StockBasicInfoMapper): The StockBasicInfoMapper instance to use for database operations.
+            mapper (StockMapper): The StockMapper instance to use for database operations.
         """
-        super().__init__(mapper=mapper, model=StockBasicInfoModel)
+        super().__init__(mapper=mapper, model=StockModel)
         self.mapper = mapper
 
-    async def get_existing_symbols(self) -> set:
+    async def get_existing_stocks(self) -> set:
         """
         获取数据库中已存在的股票代码集合
         """
         try:
-            existing_records = await self.mapper.select_all_symbols()
-            return {record['symbol'] for record in existing_records}
+            existing_records = await self.mapper.select_all_stocks()
+            return {record["stock_code"] for record in existing_records}
         except Exception as e:
             logger.error(f"获取已存在股票代码失败: {e}")
             return set()
 
-    def get_complete_stock_info(self, existing_symbols: set) -> list[dict]:
+    def get_complete_stock_info(self, existing_stocks: set) -> list[dict]:
         """
         获取完整的股票基本信息（同步版本，带防反爬和重试）
-        
+
         Args:
-            existing_symbols: 数据库中已存在的股票代码集合
+            existing_stocks: 数据库中已存在的股票代码集合
         """
         all_stocks = []
 
@@ -92,7 +96,7 @@ class StockBasicInfoServiceImpl(
             name = row["name"]
 
             # 检查是否已存在于数据库
-            if code in existing_symbols:
+            if code in existing_stocks:
                 logger.info(f"[{index+1}/{total}] 跳过已存在数据: {code} - {name}")
                 skipped_count += 1
                 continue
@@ -105,7 +109,7 @@ class StockBasicInfoServiceImpl(
                     exchange = "SH"
                     market_type = "沪市A股"
                 elif code.startswith("0"):
-                    exchange = "SZ" 
+                    exchange = "SZ"
                     market_type = "深市主板"
                 elif code.startswith("3"):
                     exchange = "SZ"
@@ -125,9 +129,8 @@ class StockBasicInfoServiceImpl(
 
                 # 初始化股票数据字典
                 stock_data = {
-                    "symbol": code,
-                    "symbol_full": f"{exchange}{code}",
-                    "name": name or "未知名称",
+                    "stock_code": code,
+                    "stock_name": name or "未知名称",
                     "exchange": exchange,
                     "market_type": market_type,
                     # 设置默认值
@@ -151,7 +154,7 @@ class StockBasicInfoServiceImpl(
                     "main_business": None,
                     "business_scope": None,
                     "company_profile": None,
-                    "data_source": "akshare"
+                    "data_source": "akshare",
                 }
 
                 # 获取详细信息
@@ -161,12 +164,16 @@ class StockBasicInfoServiceImpl(
                         profile_df = ak.stock_profile_cninfo(symbol=code)
                         break
                     except Exception as e:
-                        logger.warning(f"  第 {retry+1} 次尝试获取 {code} 的 cninfo 数据失败: {e}")
+                        logger.warning(
+                            f"  第 {retry+1} 次尝试获取 {code} 的 cninfo 数据失败: {e}"
+                        )
                         time.sleep(random.uniform(1, 2))
 
                 if profile_df is not None and not profile_df.empty:
                     # 直接映射字段
-                    stock_data["listing_date"] = self._parse_date(profile_df.get("上市日期", [None])[0])
+                    stock_data["listing_date"] = self._parse_date(
+                        profile_df.get("上市日期", [None])[0]
+                    )
                     stock_data["industry"] = profile_df.get("所属行业", [None])[0]
                     stock_data["website"] = profile_df.get("官方网站", [None])[0]
 
@@ -182,14 +189,18 @@ class StockBasicInfoServiceImpl(
                         stock_data["former_name"] = former_names
 
                     # 法人代表
-                    stock_data["legal_representative"] = profile_df.get("法人代表", [None])[0]
+                    stock_data["legal_representative"] = profile_df.get(
+                        "法人代表", [None]
+                    )[0]
 
                     # 注册资金处理
                     registered_capital = profile_df.get("注册资金", [None])[0]
                     stock_data["registered_capital"] = str(registered_capital)
 
                     # 成立日期
-                    stock_data["establish_date"] = self._parse_date(profile_df.get("成立日期", [None])[0])
+                    stock_data["establish_date"] = self._parse_date(
+                        profile_df.get("成立日期", [None])[0]
+                    )
 
                     # 联系方式信息
                     stock_data["email"] = profile_df.get("电子邮箱", [None])[0]
@@ -199,7 +210,9 @@ class StockBasicInfoServiceImpl(
                     # 地址信息
                     registered_address = profile_df.get("注册地址", [None])[0]
                     stock_data["registered_address"] = registered_address
-                    stock_data["business_address"] = profile_df.get("办公地址", [None])[0]
+                    stock_data["business_address"] = profile_df.get("办公地址", [None])[
+                        0
+                    ]
                     stock_data["postal_code"] = profile_df.get("邮政编码", [None])[0]
 
                     # 根据注册地址解析省份和城市
@@ -211,7 +224,9 @@ class StockBasicInfoServiceImpl(
                     # 业务信息
                     stock_data["main_business"] = profile_df.get("主营业务", [None])[0]
                     stock_data["business_scope"] = profile_df.get("经营范围", [None])[0]
-                    stock_data["company_profile"] = profile_df.get("机构简介", [None])[0]
+                    stock_data["company_profile"] = profile_df.get("机构简介", [None])[
+                        0
+                    ]
 
                 all_stocks.append(stock_data)
                 processed_count += 1
@@ -223,7 +238,9 @@ class StockBasicInfoServiceImpl(
             # ⚠️ 关键：每次请求后随机延迟，防止被封
             time.sleep(random.uniform(0.2, 1))
 
-        logger.info(f"数据处理完成: 共处理 {processed_count} 条新数据，跳过 {skipped_count} 条已存在数据")
+        logger.info(
+            f"数据处理完成: 共处理 {processed_count} 条新数据，跳过 {skipped_count} 条已存在数据"
+        )
         return all_stocks
 
     def _parse_date(self, date_str):
@@ -240,7 +257,7 @@ class StockBasicInfoServiceImpl(
                 date_str = date_str.strip()
 
                 # 尝试常见日期格式
-                for fmt in ['%Y-%m-%d', '%Y/%m/%d', '%Y%m%d']:
+                for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"]:
                     try:
                         return datetime.strptime(date_str, fmt).date()
                     except ValueError:
@@ -259,22 +276,48 @@ class StockBasicInfoServiceImpl(
 
         # 中国所有省份、直辖市、自治区
         provinces = [
-            '北京市', '天津市', '上海市', '重庆市',
-            '河北省', '山西省', '辽宁省', '吉林省', '黑龙江省', 
-            '江苏省', '浙江省', '安徽省', '福建省', '江西省', '山东省',
-            '河南省', '湖北省', '湖南省', '广东省', '海南省',
-            '四川省', '贵州省', '云南省', '陕西省', '甘肃省',
-            '青海省', '台湾省', '内蒙古自治区', '广西壮族自治区',
-            '西藏自治区', '宁夏回族自治区', '新疆维吾尔自治区',
-            '香港特别行政区', '澳门特别行政区'
+            "北京市",
+            "天津市",
+            "上海市",
+            "重庆市",
+            "河北省",
+            "山西省",
+            "辽宁省",
+            "吉林省",
+            "黑龙江省",
+            "江苏省",
+            "浙江省",
+            "安徽省",
+            "福建省",
+            "江西省",
+            "山东省",
+            "河南省",
+            "湖北省",
+            "湖南省",
+            "广东省",
+            "海南省",
+            "四川省",
+            "贵州省",
+            "云南省",
+            "陕西省",
+            "甘肃省",
+            "青海省",
+            "台湾省",
+            "内蒙古自治区",
+            "广西壮族自治区",
+            "西藏自治区",
+            "宁夏回族自治区",
+            "新疆维吾尔自治区",
+            "香港特别行政区",
+            "澳门特别行政区",
         ]
 
         # 特殊处理直辖市
         direct_cities = {
-            '北京市': ('北京市', None),
-            '天津市': ('天津市', None),
-            '上海市': ('上海市', None),
-            '重庆市': ('重庆市', None)
+            "北京市": ("北京市", None),
+            "天津市": ("天津市", None),
+            "上海市": ("上海市", None),
+            "重庆市": ("重庆市", None),
         }
 
         address = address.strip()
@@ -293,20 +336,22 @@ class StockBasicInfoServiceImpl(
                 found_province = province
                 # 提取省份后的内容作为城市判断依据
                 province_index = address.find(province)
-                remaining_address = address[province_index + len(province):]
+                remaining_address = address[province_index + len(province) :]
 
                 # 简单的城市提取逻辑：取省份后的2-4个字符作为城市
                 if remaining_address:
                     # 移除可能的空格和标点
-                    remaining_address = remaining_address.strip(' ,，.。')
+                    remaining_address = remaining_address.strip(" ,，.。")
 
                     # 常见城市后缀
-                    city_suffixes = ['市', '地区', '州', '盟']
+                    city_suffixes = ["市", "地区", "州", "盟"]
 
                     # 尝试提取城市名（通常是2-3个字符）
                     for i in range(2, min(5, len(remaining_address) + 1)):
                         potential_city = remaining_address[:i]
-                        if any(potential_city.endswith(suffix) for suffix in city_suffixes):
+                        if any(
+                            potential_city.endswith(suffix) for suffix in city_suffixes
+                        ):
                             found_city = potential_city
                             break
 
@@ -319,77 +364,44 @@ class StockBasicInfoServiceImpl(
         # 如果没有找到省份，尝试其他匹配方式
         if not found_province:
             # 检查是否包含"省"字
-            if '省' in address:
-                parts = address.split('省', 1)
+            if "省" in address:
+                parts = address.split("省", 1)
                 if len(parts) > 1:
-                    found_province = parts[0] + '省'
+                    found_province = parts[0] + "省"
                     remaining = parts[1].strip()
                     # 从剩余部分提取城市
-                    if '市' in remaining:
-                        city_parts = remaining.split('市', 1)
-                        found_city = city_parts[0] + '市'
+                    if "市" in remaining:
+                        city_parts = remaining.split("市", 1)
+                        found_city = city_parts[0] + "市"
 
         return found_province, found_city
-
-    def safe_shutdown(self):
-        """安全关机"""
-        system = platform.system().lower()
-
-        try:
-            if system == "windows":
-                subprocess.run(["shutdown", "/s", "/t", "60"], check=True)
-            elif system == "linux":
-                subprocess.run(["shutdown", "-h", "now"], check=True)
-            elif system == "darwin":  # macOS
-                subprocess.run(["shutdown", "-h", "now"], check=True)
-            else:
-                print("未知操作系统")
-        except subprocess.CalledProcessError as e:
-            print(f"关机命令执行失败: {e}")
-
-    async def save_to_excel(self, data: list[StockBasicInfoModel]) -> None:
-        """将数据保存到Excel文件"""
-        # 将模型列表转换为字典列表
-        data_dicts = [item.model_dump() for item in data]
-
-        # 创建DataFrame
-        df = pd.DataFrame(data_dicts)
-        
-        for col in df.columns:
-            if pd.api.types.is_datetime64_any_dtype(df[col]):
-                df[col] = df[col].dt.tz_localize(None) 
-
-        # 保存到Excel
-        filename = f"stock_data_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        df.to_excel(filename, index=False, engine='openpyxl')
 
     async def sync_manually(
         self,
     ) -> None:
         # 获取数据库中已存在的股票代码
-        existing_symbols = await self.get_existing_symbols()
-        logger.info(f"数据库中已存在 {len(existing_symbols)} 只股票数据")
+        existing_stocks = await self.get_existing_stocks()
+        logger.info(f"数据库中已存在 {len(existing_stocks)} 只股票数据")
 
         # 获取需要处理的新数据
-        all_stocks = self.get_complete_stock_info(existing_symbols)
+        all_stocks = self.get_complete_stock_info(existing_stocks)
 
         if not all_stocks:
             logger.info("没有需要处理的新数据")
             return
 
-        data = [StockBasicInfoModel(**item) for item in all_stocks]
-
-        # 保存到Excel
-        await self.save_to_excel(data)
+        data = [StockModel(**item) for item in all_stocks]
 
         # 每100条入库一次
         batch_size = 100
         total_batches = (len(data) + batch_size - 1) // batch_size
 
         for i in range(0, len(data), batch_size):
-            batch = data[i:i + batch_size]
+            batch = data[i : i + batch_size]
             batch_num = (i // batch_size) + 1
-            logger.info(f"正在入库第 {batch_num}/{total_batches} 批数据，本批 {len(batch)} 条")
+            logger.info(
+                f"正在入库第 {batch_num}/{total_batches} 批数据，本批 {len(batch)} 条"
+            )
 
             try:
                 await self.mapper.batch_insert(data_list=batch)
@@ -401,21 +413,17 @@ class StockBasicInfoServiceImpl(
 
         logger.info(f"数据同步完成，共处理 {len(data)} 条新数据")
 
-    async def get_stock_basic_info(
+    async def get_stock(
         self,
         *,
         id: int,
-    ) -> StockBasicInfoModel:
-        stock_basic_info_record: StockBasicInfoModel = await self.mapper.select_by_id(
-            id=id
-        )
-        if stock_basic_info_record is None:
+    ) -> StockModel:
+        stock_record: StockModel = await self.mapper.select_by_id(id=id)
+        if stock_record is None:
             raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
-        return stock_basic_info_record
+        return stock_record
 
-    async def list_stock_basic_infos(
-        self, req: ListStockBasicInfosRequest
-    ) -> tuple[list[StockBasicInfoModel], int]:
+    async def list_stocks(self, req: ListStocksRequest) -> tuple[list[StockModel], int]:
         filters = {
             FilterOperators.EQ: {},
             FilterOperators.NE: {},
@@ -428,34 +436,58 @@ class StockBasicInfoServiceImpl(
         }
         if req.id is not None and req.id != "":
             filters[FilterOperators.EQ]["id"] = req.id
-        if req.symbol is not None and req.symbol != "":
-            filters[FilterOperators.EQ]["symbol"] = req.symbol
-        if req.symbol_full is not None and req.symbol_full != "":
-            filters[FilterOperators.EQ]["symbol_full"] = req.symbol_full
-        if req.name is not None and req.name != "":
-            filters[FilterOperators.LIKE]["name"] = req.name
+        if req.stock_code is not None and req.stock_code != "":
+            filters[FilterOperators.EQ]["stock_code"] = req.stock_code
+        if req.stock_name is not None and req.stock_name != "":
+            filters[FilterOperators.LIKE]["stock_name"] = req.stock_name
         if req.exchange is not None and req.exchange != "":
             filters[FilterOperators.EQ]["exchange"] = req.exchange
         if req.listing_date is not None and req.listing_date != "":
             filters[FilterOperators.EQ]["listing_date"] = req.listing_date
         if req.industry is not None and req.industry != "":
             filters[FilterOperators.EQ]["industry"] = req.industry
-        if req.industry_gy is not None and req.industry_gy != "":
-            filters[FilterOperators.EQ]["industry_gy"] = req.industry_gy
         if req.province is not None and req.province != "":
             filters[FilterOperators.EQ]["province"] = req.province
         if req.city is not None and req.city != "":
             filters[FilterOperators.EQ]["city"] = req.city
+        if req.company_name is not None and req.company_name != "":
+            filters[FilterOperators.LIKE]["company_name"] = req.company_name
+        if req.english_name is not None and req.english_name != "":
+            filters[FilterOperators.LIKE]["english_name"] = req.english_name
+        if req.former_name is not None and req.former_name != "":
+            filters[FilterOperators.LIKE]["former_name"] = req.former_name
+        if req.market_type is not None and req.market_type != "":
+            filters[FilterOperators.EQ]["market_type"] = req.market_type
+        if req.legal_representative is not None and req.legal_representative != "":
+            filters[FilterOperators.EQ][
+                "legal_representative"
+            ] = req.legal_representative
+        if req.registered_capital is not None and req.registered_capital != "":
+            filters[FilterOperators.EQ]["registered_capital"] = req.registered_capital
+        if req.establish_date is not None and req.establish_date != "":
+            filters[FilterOperators.EQ]["establish_date"] = req.establish_date
         if req.website is not None and req.website != "":
             filters[FilterOperators.EQ]["website"] = req.website
-        if req.price_tick is not None and req.price_tick != "":
-            filters[FilterOperators.EQ]["price_tick"] = req.price_tick
+        if req.email is not None and req.email != "":
+            filters[FilterOperators.EQ]["email"] = req.email
+        if req.telephone is not None and req.telephone != "":
+            filters[FilterOperators.EQ]["telephone"] = req.telephone
+        if req.fax is not None and req.fax != "":
+            filters[FilterOperators.EQ]["fax"] = req.fax
+        if req.registered_address is not None and req.registered_address != "":
+            filters[FilterOperators.EQ]["registered_address"] = req.registered_address
+        if req.business_address is not None and req.business_address != "":
+            filters[FilterOperators.EQ]["business_address"] = req.business_address
+        if req.postal_code is not None and req.postal_code != "":
+            filters[FilterOperators.EQ]["postal_code"] = req.postal_code
+        if req.main_business is not None and req.main_business != "":
+            filters[FilterOperators.EQ]["main_business"] = req.main_business
+        if req.business_scope is not None and req.business_scope != "":
+            filters[FilterOperators.EQ]["business_scope"] = req.business_scope
+        if req.company_profile is not None and req.company_profile != "":
+            filters[FilterOperators.EQ]["company_profile"] = req.company_profile
         if req.data_source is not None and req.data_source != "":
             filters[FilterOperators.EQ]["data_source"] = req.data_source
-        if req.created_at is not None and req.created_at != "":
-            filters[FilterOperators.EQ]["created_at"] = req.created_at
-        if req.updated_at is not None and req.updated_at != "":
-            filters[FilterOperators.EQ]["updated_at"] = req.updated_at
         sort_list = None
         sort_str = req.sort_str
         if sort_str is not None:
@@ -468,164 +500,120 @@ class StockBasicInfoServiceImpl(
             sort_list=sort_list,
         )
 
-    async def create_stock_basic_info(
-        self, req: CreateStockBasicInfoRequest
-    ) -> StockBasicInfoModel:
-        stock_basic_info: StockBasicInfoModel = StockBasicInfoModel(
-            **req.stock_basic_info.model_dump()
-        )
-        return await self.save(data=stock_basic_info)
+    async def create_stock(self, req: CreateStockRequest) -> StockModel:
+        stock: StockModel = StockModel(**req.stock.model_dump())
+        return await self.save(data=stock)
 
-    async def update_stock_basic_info(
-        self, req: UpdateStockBasicInfoRequest
-    ) -> StockBasicInfoModel:
-        stock_basic_info_record: StockBasicInfoModel = await self.retrieve_by_id(
-            id=req.stock_basic_info.id
-        )
-        if stock_basic_info_record is None:
+    async def update_stock(self, req: UpdateStockRequest) -> StockModel:
+        stock_record: StockModel = await self.retrieve_by_id(id=req.stock.id)
+        if stock_record is None:
             raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
-        stock_basic_info_model = StockBasicInfoModel(
-            **req.stock_basic_info.model_dump(exclude_unset=True)
-        )
-        await self.modify_by_id(data=stock_basic_info_model)
-        merged_data = {
-            **stock_basic_info_record.model_dump(),
-            **stock_basic_info_model.model_dump(),
-        }
-        return StockBasicInfoModel(**merged_data)
+        stock_model = StockModel(**req.stock.model_dump(exclude_unset=True))
+        await self.modify_by_id(data=stock_model)
+        merged_data = {**stock_record.model_dump(), **stock_model.model_dump()}
+        return StockModel(**merged_data)
 
-    async def delete_stock_basic_info(self, id: int) -> None:
-        stock_basic_info_record: StockBasicInfoModel = await self.retrieve_by_id(id=id)
-        if stock_basic_info_record is None:
+    async def delete_stock(self, id: int) -> None:
+        stock_record: StockModel = await self.retrieve_by_id(id=id)
+        if stock_record is None:
             raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
         await self.mapper.delete_by_id(id=id)
 
-    async def batch_get_stock_basic_infos(
-        self, ids: list[int]
-    ) -> list[StockBasicInfoModel]:
-        stock_basic_info_records = list[StockBasicInfoModel] = (
-            await self.retrieve_by_ids(ids=ids)
-        )
-        if stock_basic_info_records is None:
+    async def batch_get_stocks(self, ids: list[int]) -> list[StockModel]:
+        stock_records = list[StockModel] = await self.retrieve_by_ids(ids=ids)
+        if stock_records is None:
             raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
-        if len(stock_basic_info_records) != len(ids):
-            not_exits_ids = [id for id in ids if id not in stock_basic_info_records]
+        if len(stock_records) != len(ids):
+            not_exits_ids = [id for id in ids if id not in stock_records]
             raise BusinessException(
                 BusinessErrorCode.RESOURCE_NOT_FOUND,
-                f"{BusinessErrorCode.RESOURCE_NOT_FOUND.message}: {str(stock_basic_info_records)} != {str(not_exits_ids)}",
+                f"{BusinessErrorCode.RESOURCE_NOT_FOUND.message}: {str(stock_records)} != {str(not_exits_ids)}",
             )
-        return stock_basic_info_records
+        return stock_records
 
-    async def batch_create_stock_basic_infos(
+    async def batch_create_stocks(
         self,
         *,
-        req: BatchCreateStockBasicInfosRequest,
-    ) -> list[StockBasicInfoModel]:
-        stock_basic_info_list: list[CreateStockBasicInfo] = req.stock_basic_infos
-        if not stock_basic_info_list:
+        req: BatchCreateStocksRequest,
+    ) -> list[StockModel]:
+        stock_list: list[CreateStock] = req.stocks
+        if not stock_list:
             raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
-        data_list = [
-            StockBasicInfoModel(**stock_basic_info.model_dump())
-            for stock_basic_info in stock_basic_info_list
-        ]
+        data_list = [StockModel(**stock.model_dump()) for stock in stock_list]
         await self.mapper.batch_insert(data_list=data_list)
         return data_list
 
-    async def batch_update_stock_basic_infos(
-        self, req: BatchUpdateStockBasicInfosRequest
-    ) -> list[StockBasicInfoModel]:
-        stock_basic_info: BatchUpdateStockBasicInfo = req.stock_basic_info
+    async def batch_update_stocks(
+        self, req: BatchUpdateStocksRequest
+    ) -> list[StockModel]:
+        stock: BatchUpdateStock = req.stock
         ids: list[int] = req.ids
-        if not stock_basic_info or not ids:
+        if not stock or not ids:
             raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
         await self.mapper.batch_update_by_ids(
-            ids=ids, data=stock_basic_info.model_dump(exclude_none=True)
+            ids=ids, data=stock.model_dump(exclude_none=True)
         )
         return await self.mapper.select_by_ids(ids=ids)
 
-    async def batch_patch_stock_basic_infos(
-        self, req: BatchPatchStockBasicInfosRequest
-    ) -> list[StockBasicInfoModel]:
-        stock_basic_infos: list[UpdateStockBasicInfo] = req.stock_basic_infos
-        if not stock_basic_infos:
+    async def batch_patch_stocks(
+        self, req: BatchPatchStocksRequest
+    ) -> list[StockModel]:
+        stocks: list[UpdateStock] = req.stocks
+        if not stocks:
             raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
         update_data: list[dict[str, Any]] = [
-            stock_basic_info.model_dump(exclude_unset=True)
-            for stock_basic_info in stock_basic_infos
+            stock.model_dump(exclude_unset=True) for stock in stocks
         ]
         await self.mapper.batch_update(items=update_data)
-        stock_basic_info_ids: list[int] = [
-            stock_basic_info.id for stock_basic_info in stock_basic_infos
-        ]
-        return await self.mapper.select_by_ids(ids=stock_basic_info_ids)
+        stock_ids: list[int] = [stock.id for stock in stocks]
+        return await self.mapper.select_by_ids(ids=stock_ids)
 
-    async def batch_delete_stock_basic_infos(
-        self, req: BatchDeleteStockBasicInfosRequest
-    ):
+    async def batch_delete_stocks(self, req: BatchDeleteStocksRequest):
         ids: list[int] = req.ids
         await self.mapper.batch_delete_by_ids(ids=ids)
 
-    async def export_stock_basic_infos_template(self) -> StreamingResponse:
-        file_name = "stock_basic_info_import_tpl"
-        return await excel_util.export_excel(
-            schema=CreateStockBasicInfo, file_name=file_name
-        )
+    async def export_stocks_template(self) -> StreamingResponse:
+        file_name = "stock_import_tpl"
+        return await excel_util.export_excel(schema=CreateStock, file_name=file_name)
 
-    async def export_stock_basic_infos(
-        self, req: ExportStockBasicInfosRequest
-    ) -> StreamingResponse:
+    async def export_stocks(self, req: ExportStocksRequest) -> StreamingResponse:
         ids: list[int] = req.ids
-        stock_basic_info_list: list[StockBasicInfoModel] = (
-            await self.mapper.select_by_ids(ids=ids)
-        )
-        if stock_basic_info_list is None or len(stock_basic_info_list) == 0:
-            logger.error(f"No stock_basic_infos found with ids {ids}")
+        stock_list: list[StockModel] = await self.mapper.select_by_ids(ids=ids)
+        if stock_list is None or len(stock_list) == 0:
+            logger.error(f"No stocks found with ids {ids}")
             raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
-        stock_basic_info_page_list = [
-            ExportStockBasicInfo(**stock_basic_info.model_dump())
-            for stock_basic_info in stock_basic_info_list
-        ]
-        file_name = "stock_basic_info_data_export"
+        stock_page_list = [ExportStock(**stock.model_dump()) for stock in stock_list]
+        file_name = "stock_data_export"
         return await excel_util.export_excel(
-            schema=ExportStockBasicInfo,
-            file_name=file_name,
-            data_list=stock_basic_info_page_list,
+            schema=ExportStock, file_name=file_name, data_list=stock_page_list
         )
 
-    async def import_stock_basic_infos(
-        self, req: ImportStockBasicInfosRequest
-    ) -> list[ImportStockBasicInfo]:
+    async def import_stocks(self, req: ImportStocksRequest) -> list[ImportStock]:
         file = req.file
         contents = await file.read()
         import_df = pd.read_excel(io.BytesIO(contents))
         import_df = import_df.fillna("")
-        stock_basic_info_records = import_df.to_dict(orient="records")
-        if stock_basic_info_records is None or len(stock_basic_info_records) == 0:
+        stock_records = import_df.to_dict(orient="records")
+        if stock_records is None or len(stock_records) == 0:
             raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
-        for record in stock_basic_info_records:
+        for record in stock_records:
             for key, value in record.items():
                 if value == "":
                     record[key] = None
-        stock_basic_info_import_list = []
-        for stock_basic_info_record in stock_basic_info_records:
+        stock_import_list = []
+        for stock_record in stock_records:
             try:
-                stock_basic_info_create = ImportStockBasicInfo(
-                    **stock_basic_info_record
-                )
-                stock_basic_info_import_list.append(stock_basic_info_create)
+                stock_create = ImportStock(**stock_record)
+                stock_import_list.append(stock_create)
             except ValidationError as e:
                 valid_data = {
                     k: v
-                    for k, v in stock_basic_info_record.items()
-                    if k in ImportStockBasicInfo.model_fields
+                    for k, v in stock_record.items()
+                    if k in ImportStock.model_fields
                 }
-                stock_basic_info_create = ImportStockBasicInfo.model_construct(
-                    **valid_data
-                )
-                stock_basic_info_create.err_msg = ValidateService.get_validate_err_msg(
-                    e
-                )
-                stock_basic_info_import_list.append(stock_basic_info_create)
-                return stock_basic_info_import_list
+                stock_create = ImportStock.model_construct(**valid_data)
+                stock_create.err_msg = ValidateService.get_validate_err_msg(e)
+                stock_import_list.append(stock_create)
+                return stock_import_list
 
-        return stock_basic_info_import_list
+        return stock_import_list

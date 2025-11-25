@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""StockBasicInfo schema"""
+"""Stock schema"""
 
 from __future__ import annotations
 
@@ -11,11 +11,10 @@ from pydantic import BaseModel, Field
 from fastlib.request import ListRequest
 
 
-class ListStockBasicInfosRequest(ListRequest):
+class ListStocksRequest(ListRequest):
     id: Optional[int] = None
-    symbol: Optional[str] = None
-    symbol_full: Optional[str] = None
-    name: Optional[str] = None
+    stock_code: Optional[str] = None
+    stock_name: Optional[str] = None
     exchange: Optional[str] = None
     listing_date: Optional[datetime] = None
     industry: Optional[str] = None
@@ -39,15 +38,12 @@ class ListStockBasicInfosRequest(ListRequest):
     business_scope: Optional[str] = None
     company_profile: Optional[str] = None
     data_source: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
-class StockBasicInfo(BaseModel):
+class Stock(BaseModel):
     id: int
-    symbol: Optional[str] = None
-    symbol_full: Optional[str] = None
-    name: Optional[str] = None
+    stock_code: Optional[str] = None
+    stock_name: Optional[str] = None
     exchange: Optional[str] = None
     listing_date: Optional[datetime] = None
     industry: Optional[str] = None
@@ -71,15 +67,12 @@ class StockBasicInfo(BaseModel):
     business_scope: Optional[str] = None
     company_profile: Optional[str] = None
     data_source: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
-class StockBasicInfoDetail(BaseModel):
+class StockDetail(BaseModel):
     id: int
-    symbol: Optional[str] = None
-    symbol_full: Optional[str] = None
-    name: Optional[str] = None
+    stock_code: Optional[str] = None
+    stock_name: Optional[str] = None
     exchange: Optional[str] = None
     listing_date: Optional[datetime] = None
     industry: Optional[str] = None
@@ -103,14 +96,11 @@ class StockBasicInfoDetail(BaseModel):
     business_scope: Optional[str] = None
     company_profile: Optional[str] = None
     data_source: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
-class CreateStockBasicInfo(BaseModel):
-    symbol: Optional[str] = None
-    symbol_full: Optional[str] = None
-    name: Optional[str] = None
+class CreateStock(BaseModel):
+    stock_code: Optional[str] = None
+    stock_name: Optional[str] = None
     exchange: Optional[str] = None
     listing_date: Optional[datetime] = None
     industry: Optional[str] = None
@@ -134,18 +124,16 @@ class CreateStockBasicInfo(BaseModel):
     business_scope: Optional[str] = None
     company_profile: Optional[str] = None
     data_source: Optional[str] = None
-    updated_at: Optional[datetime] = None
 
 
-class CreateStockBasicInfoRequest(BaseModel):
-    stock_basic_info: CreateStockBasicInfo = Field(alias="stockBasicInfo")
+class CreateStockRequest(BaseModel):
+    stock: CreateStock = Field(alias="stock")
 
 
-class UpdateStockBasicInfo(BaseModel):
+class UpdateStock(BaseModel):
     id: int
-    symbol: Optional[str] = None
-    symbol_full: Optional[str] = None
-    name: Optional[str] = None
+    stock_code: Optional[str] = None
+    stock_name: Optional[str] = None
     exchange: Optional[str] = None
     listing_date: Optional[datetime] = None
     industry: Optional[str] = None
@@ -169,29 +157,27 @@ class UpdateStockBasicInfo(BaseModel):
     business_scope: Optional[str] = None
     company_profile: Optional[str] = None
     data_source: Optional[str] = None
-    updated_at: Optional[datetime] = None
 
 
-class UpdateStockBasicInfoRequest(BaseModel):
-    stock_basic_info: UpdateStockBasicInfo = Field(alias="stockBasicInfo")
+class UpdateStockRequest(BaseModel):
+    stock: UpdateStock = Field(alias="stock")
 
 
-class BatchGetStockBasicInfosResponse(BaseModel):
-    stock_basic_infos: list[StockBasicInfoDetail] = Field(default_factory=list, alias="stockBasicInfos")
+class BatchGetStocksResponse(BaseModel):
+    stocks: list[StockDetail] = Field(default_factory=list, alias="stocks")
 
 
-class BatchCreateStockBasicInfosRequest(BaseModel):
-    stock_basic_infos: list[CreateStockBasicInfo] = Field(default_factory=list, alias="stockBasicInfos")
+class BatchCreateStocksRequest(BaseModel):
+    stocks: list[CreateStock] = Field(default_factory=list, alias="stocks")
 
 
-class BatchCreateStockBasicInfosResponse(BaseModel):
-    stock_basic_infos: list[StockBasicInfo] = Field(default_factory=list, alias="stockBasicInfos")
+class BatchCreateStocksResponse(BaseModel):
+    stocks: list[Stock] = Field(default_factory=list, alias="stocks")
 
 
-class BatchUpdateStockBasicInfo(BaseModel):
-    symbol: Optional[str] = None
-    symbol_full: Optional[str] = None
-    name: Optional[str] = None
+class BatchUpdateStock(BaseModel):
+    stock_code: Optional[str] = None
+    stock_name: Optional[str] = None
     exchange: Optional[str] = None
     listing_date: Optional[datetime] = None
     industry: Optional[str] = None
@@ -215,41 +201,40 @@ class BatchUpdateStockBasicInfo(BaseModel):
     business_scope: Optional[str] = None
     company_profile: Optional[str] = None
     data_source: Optional[str] = None
-    updated_at: Optional[datetime] = None
 
 
-class BatchUpdateStockBasicInfosRequest(BaseModel):
+class BatchUpdateStocksRequest(BaseModel):
     ids: list[int]
-    stock_basic_info: BatchUpdateStockBasicInfo = Field(alias="stockBasicInfo")
+    stock: BatchUpdateStock = Field(alias="stock")
 
 
-class BatchPatchStockBasicInfosRequest(BaseModel):
-    stock_basic_infos: list[UpdateStockBasicInfo] = Field(default_factory=list, alias="stockBasicInfos")
+class BatchPatchStocksRequest(BaseModel):
+    stocks: list[UpdateStock] = Field(default_factory=list, alias="stocks")
 
 
-class BatchUpdateStockBasicInfosResponse(BaseModel):
-     stock_basic_infos: list[StockBasicInfo] = Field(default_factory=list, alias="stockBasicInfos")
+class BatchUpdateStocksResponse(BaseModel):
+     stocks: list[Stock] = Field(default_factory=list, alias="stocks")
 
 
-class BatchDeleteStockBasicInfosRequest(BaseModel):
+class BatchDeleteStocksRequest(BaseModel):
     ids: list[int]
 
 
-class ExportStockBasicInfo(StockBasicInfo):
+class ExportStock(Stock):
     pass
 
 
-class ExportStockBasicInfosRequest(BaseModel):
+class ExportStocksRequest(BaseModel):
     ids: list[int]
 
 
-class ImportStockBasicInfosRequest(BaseModel):
+class ImportStocksRequest(BaseModel):
     file: UploadFile
 
 
-class ImportStockBasicInfo(CreateStockBasicInfo):
+class ImportStock(CreateStock):
     err_msg: Optional[str] = Field(None, alias="errMsg")
 
 
-class ImportStockBasicInfosResponse(BaseModel):
-    stock_basic_infos: list[ImportStockBasicInfo] = Field(default_factory=list, alias="stockBasicInfos")
+class ImportStocksResponse(BaseModel):
+    stocks: list[ImportStock] = Field(default_factory=list, alias="stocks")

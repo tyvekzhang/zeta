@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""StockBasicInfo data model"""
+"""Stock data model"""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ from sqlmodel import (
     Index,
     UniqueConstraint,
     BigInteger,
+    DateTime,
     String,
     Integer,
-    DateTime,
 )
 
 from fastlib.utils.snowflake_util import snowflake_id
 
 
-class StockBasicInfoBase(SQLModel):
+class StockBase(SQLModel):
     
     id: int = Field(
         default_factory=snowflake_id,
@@ -29,21 +29,14 @@ class StockBasicInfoBase(SQLModel):
         nullable=False,
         sa_type=BigInteger,sa_column_kwargs={"comment": "主键"}
     )
-    symbol: Optional[str] = Field(
+    stock_code: Optional[str] = Field(
         sa_column=Column(
             String(10),
             nullable=True,
             comment="股票编号"
         )
     )
-    symbol_full: Optional[str] = Field(
-        sa_column=Column(
-            String(20),
-            nullable=True,
-            comment="股票代码"
-        )
-    )
-    name: Optional[str] = Field(
+    stock_name: Optional[str] = Field(
         sa_column=Column(
             String(100),
             nullable=True,
@@ -150,7 +143,7 @@ class StockBasicInfoBase(SQLModel):
     )
     telephone: Optional[str] = Field(
         sa_column=Column(
-            String(50),
+            String(500),
             nullable=True,
             comment="联系电话"
         )
@@ -224,13 +217,13 @@ class StockBasicInfoBase(SQLModel):
     )
 
 
-class StockBasicInfoModel(StockBasicInfoBase, table=True):
-    __tablename__ = "stock_basic_info"
+class StockModel(StockBase, table=True):
+    __tablename__ = "stocks"
     __table_args__ = (
         Index("idx_exchange", "exchange"),
         Index("idx_industry", "industry"),
         Index("idx_listing_date", "listing_date"),
         Index("idx_province", "province"),
-        UniqueConstraint("symbol", name="uniq_symbol"),
-        UniqueConstraint("symbol_full", name="uniq_symbol_full"),
+        UniqueConstraint("stock_code", name="uniq_symbol"),
+        {"comment": "股票基础信息表"},
     )
