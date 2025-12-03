@@ -35,6 +35,7 @@ dependencies = [
   "akshare>=1.17.85",
   "fastlib-py>=0.3.4",
   "matplotlib>=3.9.4",
+  "playwright>=1.56.0",
   "seaborn>=0.13.2",
 ]
 
