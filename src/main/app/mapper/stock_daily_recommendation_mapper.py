@@ -38,30 +38,5 @@ class StockDailyRecommendationMapper(SqlModelMapper[StockDailyRecommendationMode
         return result.all()
 
 
-    async def select_by_stock_symbol_full, recommend_date(
-        self, *, stock_symbol_full, recommend_date: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockDailyRecommendationModel]:
-        """
-        Retrieve a record by stock_symbol_full, recommend_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.stock_symbol_full, recommend_date == stock_symbol_full, recommend_date)
-        )
-        return result.one_or_none()
-
-    async def select_by_stock_symbol_full, recommend_date_list(
-        self, *, stock_symbol_full, recommend_date_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockDailyRecommendationModel]:
-        """
-        Retrieve records by list of stock_symbol_full, recommend_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.stock_symbol_full, recommend_date.in_(stock_symbol_full, recommend_date_list))
-        )
-        return result.all()
-
-
 
 stockDailyRecommendationMapper = StockDailyRecommendationMapper(StockDailyRecommendationModel)

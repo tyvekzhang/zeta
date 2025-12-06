@@ -63,30 +63,5 @@ class StockCapitalFlowMapper(SqlModelMapper[StockCapitalFlowModel]):
         return result.all()
 
 
-    async def select_by_stock_symbol_full, trade_date(
-        self, *, stock_symbol_full, trade_date: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockCapitalFlowModel]:
-        """
-        Retrieve a record by stock_symbol_full, trade_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.stock_symbol_full, trade_date == stock_symbol_full, trade_date)
-        )
-        return result.one_or_none()
-
-    async def select_by_stock_symbol_full, trade_date_list(
-        self, *, stock_symbol_full, trade_date_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockCapitalFlowModel]:
-        """
-        Retrieve records by list of stock_symbol_full, trade_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.stock_symbol_full, trade_date.in_(stock_symbol_full, trade_date_list))
-        )
-        return result.all()
-
-
 
 stockCapitalFlowMapper = StockCapitalFlowMapper(StockCapitalFlowModel)

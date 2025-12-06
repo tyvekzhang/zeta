@@ -168,3 +168,5 @@ cython_debug/
 **/htmlcov
 /src/main/resource/alembic/db/fast_web.db
 /src/log/
+
+*.pyc

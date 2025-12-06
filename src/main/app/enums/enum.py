@@ -3,6 +3,12 @@
 
 from enum import Enum
 
+class TokenTypeEnum(str, Enum):
+    """Enumeration for token types in authentication."""
+
+    access = "access"
+    refresh = "refresh"
+    bearer = "Bearer"
 
 class UserStatusEnum(Enum):
     """User Status Enum"""

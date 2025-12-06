@@ -88,30 +88,5 @@ class BankCapitalInfoMapper(SqlModelMapper[BankCapitalInfoModel]):
         return result.all()
 
 
-    async def select_by_bank_code, trade_date(
-        self, *, bank_code, trade_date: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[BankCapitalInfoModel]:
-        """
-        Retrieve a record by bank_code, trade_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.bank_code, trade_date == bank_code, trade_date)
-        )
-        return result.one_or_none()
-
-    async def select_by_bank_code, trade_date_list(
-        self, *, bank_code, trade_date_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[BankCapitalInfoModel]:
-        """
-        Retrieve records by list of bank_code, trade_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.bank_code, trade_date.in_(bank_code, trade_date_list))
-        )
-        return result.all()
-
-
 
 bankCapitalInfoMapper = BankCapitalInfoMapper(BankCapitalInfoModel)

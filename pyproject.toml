@@ -17,13 +17,11 @@ maintainers = [
 authors = [
   { name = "tyvekzhang", email = "tyvekzhang@gmail.com" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -33,7 +31,7 @@ classifiers = [
 dependencies = [
   "aiomysql>=0.3.2",
   "akshare>=1.17.85",
-  "fastlib-py>=0.3.4",
+  "fastlib-py[mysql]>=0.4.3",
   "matplotlib>=3.9.4",
   "playwright>=1.56.0",
   "seaborn>=0.13.2",

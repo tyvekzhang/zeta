@@ -38,30 +38,4 @@ class StockHolderInfoMapper(SqlModelMapper[StockHolderInfoModel]):
         return result.all()
 
 
-    async def select_by_stock_symbol_full, report_date(
-        self, *, stock_symbol_full, report_date: str, db_session: Optional[AsyncSession] = None
-    ) -> Optional[StockHolderInfoModel]:
-        """
-        Retrieve a record by stock_symbol_full, report_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.stock_symbol_full, report_date == stock_symbol_full, report_date)
-        )
-        return result.one_or_none()
-
-    async def select_by_stock_symbol_full, report_date_list(
-        self, *, stock_symbol_full, report_date_list: list[str], db_session: Optional[AsyncSession] = None
-    ) -> list[StockHolderInfoModel]:
-        """
-        Retrieve records by list of stock_symbol_full, report_date.
-        """
-        db_session = db_session or self.db.session
-        result = await db_session.exec(
-            select(self.model).where(self.model.stock_symbol_full, report_date.in_(stock_symbol_full, report_date_list))
-        )
-        return result.all()
-
-
-
 stockHolderInfoMapper = StockHolderInfoMapper(StockHolderInfoModel)

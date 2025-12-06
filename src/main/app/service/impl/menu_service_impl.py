@@ -1,0 +1,257 @@
+# Copyright (c) 2025 FastWeb and/or its affiliates. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+"""Menu domain service impl"""
+
+from __future__ import annotations
+
+import io
+import json
+from typing import Type, Any
+
+import pandas as pd
+from loguru import logger
+from pydantic import ValidationError
+from starlette.responses import StreamingResponse
+
+from fastlib.constants import FilterOperators
+from fastlib.service.impl.base_service_impl import BaseServiceImpl
+from fastlib.utils import excel_util
+from fastlib.utils.validate_util import ValidateService
+from src.main.app.exception.biz_exception import BusinessErrorCode
+from src.main.app.exception.biz_exception import BusinessException
+from src.main.app.mapper.menu_mapper import MenuMapper
+from src.main.app.model.menu_model import MenuModel
+from src.main.app.schema.menu_schema import (
+    ListMenusRequest,
+    Menu,
+    CreateMenuRequest,
+    UpdateMenuRequest,
+    BatchDeleteMenusRequest,
+    ExportMenusRequest,
+    BatchCreateMenusRequest,
+    CreateMenu,
+    BatchUpdateMenusRequest,
+    UpdateMenu,
+    ImportMenusRequest,
+    ImportMenu,
+    ExportMenu,
+    BatchPatchMenusRequest,
+    BatchUpdateMenu,
+)
+from src.main.app.service.menu_service import MenuService
+
+
+class MenuServiceImpl(BaseServiceImpl[MenuMapper, MenuModel], MenuService):
+    """
+    Implementation of the MenuService interface.
+    """
+
+    def __init__(self, mapper: MenuMapper):
+        """
+        Initialize the MenuServiceImpl instance.
+
+        Args:
+            mapper (MenuMapper): The MenuMapper instance to use for database operations.
+        """
+        super().__init__(mapper=mapper, model=MenuModel)
+        self.mapper = mapper
+
+    async def get_menu(
+        self,
+        *,
+        id: int,
+    ) -> MenuModel:
+        menu_record: MenuModel = await self.mapper.select_by_id(id=id)
+        if menu_record is None:
+            raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
+        return menu_record
+
+    async def list_menus(self, req: ListMenusRequest) -> tuple[list[MenuModel], int]:
+        filters = {
+            FilterOperators.EQ: {},
+            FilterOperators.NE: {},
+            FilterOperators.GT: {},
+            FilterOperators.GE: {},
+            FilterOperators.LT: {},
+            FilterOperators.LE: {},
+            FilterOperators.BETWEEN: {},
+            FilterOperators.LIKE: {},
+        }
+        if req.parent_id is not None and req.parent_id != "":
+            filters[FilterOperators.EQ]["parent_id"] = req.parent_id
+        else:
+            filters[FilterOperators.EQ]["parent_id"] = 0
+        if req.id is not None and req.id != "":
+            filters[FilterOperators.EQ]["id"] = req.id
+        if req.name is not None and req.name != "":
+            filters[FilterOperators.LIKE]["name"] = req.name
+        if req.icon is not None and req.icon != "":
+            filters[FilterOperators.EQ]["icon"] = req.icon
+        if req.permission is not None and req.permission != "":
+            filters[FilterOperators.EQ]["permission"] = req.permission
+        if req.sort is not None and req.sort != "":
+            filters[FilterOperators.EQ]["sort"] = req.sort
+        if req.path is not None and req.path != "":
+            filters[FilterOperators.EQ]["path"] = req.path
+        if req.component is not None and req.component != "":
+            filters[FilterOperators.EQ]["component"] = req.component
+        if req.type is not None and req.type != "":
+            filters[FilterOperators.EQ]["type"] = req.type
+        if req.cacheable is not None and req.cacheable != "":
+            filters[FilterOperators.EQ]["cacheable"] = req.cacheable
+        if req.visible is not None and req.visible != "":
+            filters[FilterOperators.EQ]["visible"] = req.visible
+        if req.status is not None and req.status != "":
+            filters[FilterOperators.EQ]["status"] = req.status
+        if req.create_time is not None and req.create_time != "":
+            filters[FilterOperators.EQ]["create_time"] = req.create_time
+        sort_list = None
+        sort_str = req.sort_str
+        if sort_str is not None:
+            sort_list = json.loads(sort_str)
+        return await self.mapper.select_by_ordered_page(
+            current=req.current,
+            page_size=req.page_size,
+            count=req.count,
+            **filters,
+            sort_list=sort_list,
+        )
+
+    async def get_children_recursively(
+        self, *, parent_data: list[MenuModel], schema_class: Type[Menu]
+    ) -> list[Menu]:
+        if not parent_data:
+            return []
+        menu_list = [Menu(**record.model_dump()) for record in parent_data]
+        return await self.mapper.get_children_recursively(
+            parent_data=menu_list, schema_class=schema_class
+        )
+
+    async def create_menu(self, req: CreateMenuRequest) -> MenuModel:
+        menu_record: MenuModel = await self.mapper.select_by_name(name=req.menu.name)
+        if menu_record is not None:
+            raise BusinessException(BusinessErrorCode.MENU_NAME_EXISTS)
+        menu: MenuModel = MenuModel(**req.menu.model_dump())
+        return await self.save(data=menu)
+
+    async def update_menu(self, req: UpdateMenuRequest) -> MenuModel:
+        menu_record: MenuModel = await self.retrieve_by_id(id=req.menu.id)
+        if menu_record is None:
+            raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
+        menu_model = MenuModel(**req.menu.model_dump(exclude_unset=True))
+        await self.modify_by_id(data=menu_model)
+        merged_data = {**menu_record.model_dump(), **menu_model.model_dump()}
+        return MenuModel(**merged_data)
+
+    async def delete_menu(self, id: int) -> None:
+        menu_record: MenuModel = await self.retrieve_by_id(id=id)
+        if menu_record is None:
+            raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
+        await self.mapper.delete_by_id(id=id)
+
+    async def batch_get_menus(self, ids: list[int]) -> list[MenuModel]:
+        menu_records = list[MenuModel] = await self.retrieve_by_ids(ids=ids)
+        if menu_records is None:
+            raise BusinessException(BusinessErrorCode.RESOURCE_NOT_FOUND)
+        if len(menu_records) != len(ids):
+            not_exits_ids = [id for id in ids if id not in menu_records]
+            raise BusinessException(
+                BusinessErrorCode.RESOURCE_NOT_FOUND,
+                f"{BusinessErrorCode.RESOURCE_NOT_FOUND.message}: {str(menu_records)} != {str(not_exits_ids)}",
+            )
+        return menu_records
+
+    async def batch_create_menus(
+        self,
+        *,
+        req: BatchCreateMenusRequest,
+    ) -> list[MenuModel]:
+        menu_list: list[CreateMenu] = req.menus
+        if not menu_list:
+            raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
+        menu_names = [menu.name for menu in menu_list]
+        menu_records: list[MenuModel] = await self.mapper.select_by_names(names=menu_names)
+        if menu_records:
+            exist_menu_names = [menu.name for menu in menu_records]
+            raise BusinessException(
+                BusinessErrorCode.MENU_NAME_EXISTS,
+                f"{BusinessErrorCode.MENU_NAME_EXISTS.message}: {str(exist_menu_names)}",
+            )
+        data_list = [MenuModel(**menu.model_dump()) for menu in menu_list]
+        await self.mapper.batch_insert(data_list=data_list)
+        return data_list
+
+    async def batch_update_menus(self, req: BatchUpdateMenusRequest) -> list[MenuModel]:
+        menu: BatchUpdateMenu = req.menu
+        ids: list[int] = req.ids
+        if not menu or not ids:
+            raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
+        await self.mapper.batch_update_by_ids(ids=ids, data=menu.model_dump(exclude_none=True))
+        return await self.mapper.select_by_ids(ids=ids)
+
+    async def batch_patch_menus(self, req: BatchPatchMenusRequest) -> list[MenuModel]:
+        menus: list[UpdateMenu] = req.menus
+        if not menus:
+            raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
+        update_data: list[dict[str, Any]] = [menu.model_dump(exclude_unset=True) for menu in menus]
+        await self.mapper.batch_update(items=update_data)
+        menu_ids: list[int] = [menu.id for menu in menus]
+        return await self.mapper.select_by_ids(ids=menu_ids)
+
+    async def batch_delete_menus(self, req: BatchDeleteMenusRequest):
+        ids: list[int] = req.ids
+        await self.mapper.batch_delete_by_ids(ids=ids)
+
+    async def export_menus_template(self) -> StreamingResponse:
+        file_name = "menu_import_tpl"
+        return await excel_util.export_excel(schema=CreateMenu, file_name=file_name)
+
+    async def export_menus(self, req: ExportMenusRequest) -> StreamingResponse:
+        ids: list[int] = req.ids
+        menu_list: list[MenuModel] = await self.mapper.select_by_ids(ids=ids)
+        if menu_list is None or len(menu_list) == 0:
+            logger.error(f"No menus found with ids {ids}")
+            raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
+        menu_page_list = [ExportMenu(**menu.model_dump()) for menu in menu_list]
+        file_name = "menu_data_export"
+        return await excel_util.export_excel(
+            schema=ExportMenu, file_name=file_name, data_list=menu_page_list
+        )
+
+    async def import_menus(self, req: ImportMenusRequest) -> list[ImportMenu]:
+        file = req.file
+        contents = await file.read()
+        import_df = pd.read_excel(io.BytesIO(contents))
+        import_df = import_df.fillna("")
+        menu_records = import_df.to_dict(orient="records")
+        if menu_records is None or len(menu_records) == 0:
+            raise BusinessException(BusinessErrorCode.PARAMETER_ERROR)
+        for record in menu_records:
+            for key, value in record.items():
+                if value == "":
+                    record[key] = None
+        menu_import_list = []
+        for menu_record in menu_records:
+            try:
+                menu_create = ImportMenu(**menu_record)
+                menu_import_list.append(menu_create)
+            except ValidationError as e:
+                valid_data = {k: v for k, v in menu_record.items() if k in ImportMenu.model_fields}
+                menu_create = ImportMenu.model_construct(**valid_data)
+                menu_create.err_msg = ValidateService.get_validate_err_msg(e)
+                menu_import_list.append(menu_create)
+                return menu_import_list
+
+        return menu_import_list
